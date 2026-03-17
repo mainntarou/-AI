@@ -210,5 +210,47 @@ add("起動完了！会話を覚えるAIだよ","ai");
 
 </script>
 
+<!-- ⚠️ サーバー(api/ai.js)もこれに対応させる必要あり -->
+<!-- 修正版 api/ai.js ↓
+export default async function handler(req, res) {
+
+const API_KEY = process.env.GROQ_API_KEY;
+
+const { messages, web, urlText } = req.body;
+
+// 情報を最後に追加
+let finalMessages = [
+ { role: "system", content: "あなたは高性能AIです。検索やURL内容も使って答えてください。" },
+ ...messages
+];
+
+// 補助情報を追加
+if(web){
+ finalMessages.push({ role:"system", content:"検索情報: " + web });
+}
+
+if(urlText){
+ finalMessages.push({ role:"system", content:"URL内容: " + urlText });
+}
+
+const response = await fetch("https://api.groq.com/openai/v1/chat/completions",{
+ method:"POST",
+ headers:{
+  "Content-Type":"application/json",
+  "Authorization":"Bearer " + API_KEY
+ },
+ body:JSON.stringify({
+  model:"llama-3.3-70b-versatile",
+  messages: finalMessages
+ })
+});
+
+const data = await response.json();
+
+res.status(200).json(data);
+}
+-->
+
+
 </body>
 </html>
