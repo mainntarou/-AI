@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>最強AIチャット</title>
+<title>最強AIチャット（記憶付き）</title>
 
 <style>
 body{
@@ -94,7 +94,7 @@ background:#00a0d1;
 <body>
 
 <div id="app">
-<div id="header">🤖 最強AIチャット</div>
+<div id="header">🤖 最強AIチャット（記憶あり）</div>
 <div id="chat"></div>
 <div id="inputArea">
 <input id="input" placeholder="質問・要約・URL入力...">
@@ -107,6 +107,11 @@ background:#00a0d1;
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const send = document.getElementById("send");
+
+// 🧠 会話履歴（これが記憶）
+let messages = [
+ { role: "system", content: "あなたは高性能AIです。自然で分かりやすく答えてください。" }
+];
 
 function add(text,type){
  const div=document.createElement("div");
@@ -125,7 +130,7 @@ async function getURLContent(url){
  try{
   let res=await fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url));
   let data=await res.json();
-  return data.contents.replace(/<[^>]*>/g,"").slice(0,3000);
+  return data.contents.replace(/<[^>]*>/g,"").slice(0,2000);
  }catch(e){
   return "";
  }
@@ -151,26 +156,19 @@ async function askAI(msg){
   urlText = await getURLContent(url);
  }
 
- let prompt = `
-あなたは高性能AIです。
-自然で分かりやすく答えてください。
-
-検索情報:
-${web}
-
-URL内容:
-${urlText}
-
-質問:
-${msg}
-`;
+ // 🔥 ユーザー発言を記憶に追加
+ messages.push({ role: "user", content: msg });
 
  let res = await fetch("/api/ai",{
   method:"POST",
   headers:{
    "Content-Type":"application/json"
   },
-  body:JSON.stringify({message: prompt})
+  body:JSON.stringify({
+   messages: messages,
+   web: web,
+   urlText: urlText
+  })
  });
 
  let data = await res.json();
@@ -180,7 +178,12 @@ ${msg}
   return "エラー: "+(data.error?.message||"不明");
  }
 
- return data.choices[0].message.content || "うまく返答できなかった…";
+ let reply = data.choices[0].message.content || "うまく返答できなかった…";
+
+ // 🔥 AIの返答も記憶
+ messages.push({ role: "assistant", content: reply });
+
+ return reply;
 }
 
 async function sendMsg(){
@@ -203,7 +206,7 @@ input.addEventListener("keydown",e=>{
  if(e.key==="Enter") sendMsg();
 });
 
-add("起動完了！話しかけてみて","ai");
+add("起動完了！会話を覚えるAIだよ","ai");
 
 </script>
 
