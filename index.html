@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最強AIチャット</title>
+
+<style>
+body{
+margin:0;
+background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+font-family:sans-serif;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+#app{
+width:420px;
+height:600px;
+background:#111;
+border-radius:15px;
+display:flex;
+flex-direction:column;
+box-shadow:0 0 30px rgba(0,0,0,0.8);
+overflow:hidden;
+}
+
+#header{
+padding:15px;
+background:#1a1a1a;
+font-weight:bold;
+text-align:center;
+border-bottom:1px solid #333;
+}
+
+#chat{
+flex:1;
+overflow-y:auto;
+padding:10px;
+display:flex;
+flex-direction:column;
+}
+
+.message{
+margin-bottom:10px;
+padding:10px;
+border-radius:10px;
+max-width:80%;
+word-break:break-word;
+}
+
+.user{
+background:#0066ff;
+align-self:flex-end;
+}
+
+.ai{
+background:#333;
+align-self:flex-start;
+}
+
+#inputArea{
+display:flex;
+border-top:1px solid #333;
+}
+
+#input{
+flex:1;
+padding:12px;
+border:none;
+outline:none;
+background:#222;
+color:white;
+}
+
+#send{
+padding:12px 15px;
+border:none;
+background:#00c3ff;
+color:black;
+cursor:pointer;
+}
+
+#send:hover{
+background:#00a0d1;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="app">
+<div id="header">🤖 最強AIチャット</div>
+<div id="chat"></div>
+<div id="inputArea">
+<input id="input" placeholder="質問・要約・URL入力...">
+<button id="send">送信</button>
+</div>
+</div>
+
+<script>
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+
+function add(text,type){
+ const div=document.createElement("div");
+ div.className="message "+type;
+ div.textContent=text;
+ chat.appendChild(div);
+ chat.scrollTop=chat.scrollHeight;
+}
+
+function extractURL(text){
+ let match=text.match(/https?:\/\/[^\s]+/);
+ return match?match[0]:null;
+}
+
+async function getURLContent(url){
+ try{
+  let res=await fetch("https://api.allorigins.win/get?url="+encodeURIComponent(url));
+  let data=await res.json();
+  return data.contents.replace(/<[^>]*>/g,"").slice(0,3000);
+ }catch(e){
+  return "";
+ }
+}
+
+async function search(q){
+ try{
+  let res=await fetch("https://api.duckduckgo.com/?q="+encodeURIComponent(q)+"&format=json");
+  let data=await res.json();
+  return data.Abstract || data.RelatedTopics?.[0]?.Text || "";
+ }catch(e){
+  return "";
+ }
+}
+
+async function askAI(msg){
+
+ let web = await search(msg);
+ let url = extractURL(msg);
+ let urlText = "";
+
+ if(url){
+  urlText = await getURLContent(url);
+ }
+
+ let prompt = `
+あなたは高性能AIです。
+自然で分かりやすく答えてください。
+
+検索情報:
+${web}
+
+URL内容:
+${urlText}
+
+質問:
+${msg}
+`;
+
+ let res = await fetch("/api/ai",{
+  method:"POST",
+  headers:{
+   "Content-Type":"application/json"
+  },
+  body:JSON.stringify({message: prompt})
+ });
+
+ let data = await res.json();
+
+ if(!data.choices){
+  console.log(data);
+  return "エラー: "+(data.error?.message||"不明");
+ }
+
+ return data.choices[0].message.content || "うまく返答できなかった…";
+}
+
+async function sendMsg(){
+ let text=input.value;
+ if(!text) return;
+
+ add(text,"user");
+ input.value="";
+
+ add("🤔 考え中...","ai");
+
+ let reply = await askAI(text);
+
+ chat.lastChild.remove();
+ add(reply,"ai");
+}
+
+send.onclick=sendMsg;
+input.addEventListener("keydown",e=>{
+ if(e.key==="Enter") sendMsg();
+});
+
+add("起動完了！話しかけてみて","ai");
+
+</script>
+
+</body>
+</html>
